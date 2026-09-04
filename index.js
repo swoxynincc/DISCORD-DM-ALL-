@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits } = require('discord.js');
 const { joinVoiceChannel } = require('@discordjs/voice');
 const express = require('express');
 
@@ -30,8 +30,8 @@ client.on('ready', () => {
                 channelId: channelId,
                 guildId: guildId,
                 adapterCreator: client.guilds.cache.get(guildId).voiceAdapterCreator,
-                selfDeaf: true, // Kulaklık kapat (veri tasarrufu)
-                selfMute: true  // Mikrofon kapat
+                selfDeaf: true, 
+                selfMute: true  
             });
             console.log("DM Botu ses kanalına başarıyla bağlandı.");
         } catch (error) {
@@ -53,7 +53,7 @@ client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
 
     // --- ⚠️ GUARD BOTU İLE ÇAKIŞMA ENGELLEYİCİ ---
-    // Eğer normal help yazılırsa bu bot tamamen görmezden gelir, Guard botu cevap verir.
+    // Help veya yardım yazıldığında bu bot tamamen görmezden gelir, hiçbir menü atmaz.
     if (message.content.startsWith('!help') || message.content.startsWith('!yardım')) return;
 
     // Komut İşleme Kontrolü
@@ -61,24 +61,8 @@ client.on('messageCreate', async (message) => {
     const args = message.content.slice(1).trim().split(/ +/);
     const command = args.shift().toLowerCase();
 
-    // --- 📖 DM BOTU YARDIM KOMUTU (!dmhelp) ---
-    if (command === 'dmhelp') {
-        const embed = new EmbedBuilder()
-            .setColor('#ff0000')
-            .setTitle('📩 THEKANADA DM BOTU YARDIM MENÜSÜ')
-            .setDescription('DM botunun aktif komutları aşağıda listelenmiştir.')
-            .addFields(
-                { name: '🌐 Bot Komutları', value: '`!dmhelp` - Bu yardım menüsünü gösterir.\n`!dmmesaj @üye <mesaj>` - Belirtilen üyeye bot aracılığıyla gizli DM gönderir.' }
-            )
-            .setFooter({ text: 'TheKanada DM Altyapısı' })
-            .setTimestamp();
-
-        return message.reply({ embeds: [embed] });
-    }
-
-    // --- 💬 DM GÖNDERME KOMUTU (!dmmesaj @üye <mesaj>) ---
+    // --- 💬 SADECE DM GÖNDERME KOMUTU (!dmmesaj @üye <mesaj>) ---
     if (command === 'dmmesaj' || command === 'dm') {
-        // Sadece mesajı yazan yetkili mi kontrolü (İsteğe bağlı olarak buraya yetki eklenebilir)
         const hedef = message.mentions.users.first();
         const dmMesaji = args.slice(1).join(' ');
 
@@ -97,5 +81,5 @@ client.on('messageCreate', async (message) => {
     }
 });
 
-// Bot tokenini Render panelinden güvenli bir şekilde çekiyoruz
+// Bot tokenini Render panelinden çekiyoruz
 client.login(process.env.TOKEN);
