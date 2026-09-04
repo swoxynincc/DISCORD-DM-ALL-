@@ -1,33 +1,26 @@
-const { Client, GatewayIntentBits } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 const { joinVoiceChannel } = require('@discordjs/voice');
 const express = require('express');
 
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildVoiceStates,
         GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.DirectMessages
+        GatewayIntentBits.GuildVoiceStates,
+        GatewayIntentBits.DirectMessages,
+        GatewayIntentBits.MessageContent
     ]
 });
 
-// --- UPTIME ROBOT VE RENDER İÇİN WEB SUNUCUSU ---
+// RENDER & UPTIME ROBOT İÇİN WEB SUNUCU
 const app = express();
-const PORT = process.env.PORT || 3000;
-
-app.get('/', (req, res) => {
-    res.send('TheKanada DM ve Ses Botu 7/24 Aktif!');
-});
-
-app.listen(PORT, () => {
-    console.log(`Web sunucusu ${PORT} portunda çalışıyor.`);
-});
-// ------------------------------------------------
+app.get('/', (req, res) => res.send('TheKanada DM ve Ses Botu 7/24 Aktif!'));
+app.listen(process.env.PORT || 3000);
 
 client.on('ready', () => {
-    console.log(`${client.user.tag} hazır!`);
+    console.log(`${client.user.tag} DM ve Ses Botu Aktif!`);
 
-    // Kendi ID'lerini tırnakların içine yaz kanka
+    // Botun 7/24 duracağı ses kanalının ve sunucunun ID'leri
     const channelId = '1543153290823475211'; 
     const guildId = '1540484134361636884'; 
 
@@ -37,21 +30,72 @@ client.on('ready', () => {
                 channelId: channelId,
                 guildId: guildId,
                 adapterCreator: client.guilds.cache.get(guildId).voiceAdapterCreator,
-                selfDeaf: true, 
-                selfMute: true  
+                selfDeaf: true, // Kulaklık kapat (veri tasarrufu)
+                selfMute: true  // Mikrofon kapat
             });
-            console.log("Ses kanalına başarıyla bağlanıldı.");
+            console.log("DM Botu ses kanalına başarıyla bağlandı.");
         } catch (error) {
             console.error("Sese bağlanırken hata:", error);
         }
     };
 
+    // İlk açılışta sese bağlan
     connectToVoice();
 
-    // Sesten düşerse her 15 dakikada bir kontrol eder
+    // Bot sesten düşerse her 15 dakikada bir kontrol edip tekrar sokar
     setInterval(() => {
         connectToVoice();
     }, 15 * 60 * 1000);
 });
 
+client.on('messageCreate', async (message) => {
+    // Botların kendi mesajlarını veya diğer botları dinlemesini engelle
+    if (message.author.bot) return;
+
+    // --- ⚠️ GUARD BOTU İLE ÇAKIŞMA ENGELLEYİCİ ---
+    // Eğer normal help yazılırsa bu bot tamamen görmezden gelir, Guard botu cevap verir.
+    if (message.content.startsWith('!help') || message.content.startsWith('!yardım')) return;
+
+    // Komut İşleme Kontrolü
+    if (!message.content.startsWith('!')) return;
+    const args = message.content.slice(1).trim().split(/ +/);
+    const command = args.shift().toLowerCase();
+
+    // --- 📖 DM BOTU YARDIM KOMUTU (!dmhelp) ---
+    if (command === 'dmhelp') {
+        const embed = new EmbedBuilder()
+            .setColor('#ff0000')
+            .setTitle('📩 THEKANADA DM BOTU YARDIM MENÜSÜ')
+            .setDescription('DM botunun aktif komutları aşağıda listelenmiştir.')
+            .addFields(
+                { name: '🌐 Bot Komutları', value: '`!dmhelp` - Bu yardım menüsünü gösterir.\n`!dmmesaj @üye <mesaj>` - Belirtilen üyeye bot aracılığıyla gizli DM gönderir.' }
+            )
+            .setFooter({ text: 'TheKanada DM Altyapısı' })
+            .setTimestamp();
+
+        return message.reply({ embeds: [embed] });
+    }
+
+    // --- 💬 DM GÖNDERME KOMUTU (!dmmesaj @üye <mesaj>) ---
+    if (command === 'dmmesaj' || command === 'dm') {
+        // Sadece mesajı yazan yetkili mi kontrolü (İsteğe bağlı olarak buraya yetki eklenebilir)
+        const hedef = message.mentions.users.first();
+        const dmMesaji = args.slice(1).join(' ');
+
+        if (!hedef || !dmMesaji) {
+            return message.reply('⚠️ **Yanlış Kullanım!** Örn: `!dmmesaj @üye Selam kanka nasılsın?`');
+        }
+
+        try {
+            // Kullanıcıya DM gönder
+            await hedef.send(`💬 **TheKanada Sunucusundan Bir Mesajın Var:**\n\n${dmMesaji}`);
+            return message.reply(`✅ **${hedef.username}** isimli kullanıcının DM kutusuna mesaj başarıyla fırlatıldı!`);
+        } catch (error) {
+            console.error(error);
+            return message.reply(`❌ **Mesaj gönderilemedi!** Kullanıcının DM kutusu kapalı olabilir veya botu engellemiş olabilir.`);
+        }
+    }
+});
+
+// Bot tokenini Render panelinden güvenli bir şekilde çekiyoruz
 client.login(process.env.TOKEN);
